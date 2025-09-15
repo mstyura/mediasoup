@@ -5,7 +5,7 @@ use crate::worker::utils::{PreparedChannelRead, PreparedChannelWrite};
 use crate::worker::{RequestError, SubscriptionHandler};
 use atomic_take::AtomicTake;
 use hash_hasher::HashedMap;
-use log::{debug, error, trace, warn};
+use log::{debug, error, trace, warn, info};
 use lru::LruCache;
 use mediasoup_sys::fbs::{message, notification, request, response};
 use mediasoup_sys::UvAsyncT;
@@ -374,7 +374,7 @@ impl Channel {
             requests_container_lock.handlers.insert(id, result_sender);
         }
 
-        debug!("request() [method:{:?}, id:{}]", R::METHOD, id);
+        info!("request() [method:{:?}, id:{}]: {:?}", R::METHOD, id, request);
 
         let data = request.into_bytes(id, handler_id);
 
