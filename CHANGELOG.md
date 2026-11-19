@@ -23,6 +23,7 @@
   - Fix `ICE::StunPacket::IsStun()`: Packets whose first byte is 3 were not considered STUN (RFC 7983).
   - Fix `ICE::IceServer`: In 'completed' state, a Binding request with USE-CANDIDATE and a nomination not higher than the current one changed the selected tuple (ICE renomination).
   - Fix `ICE::IceServer`: A Binding request with ICE-CONTROLLED and a tie-breaker of 0 was not rejected with a 487 (role conflict).
+- Worker: Fix `Consumer` sending an RTP packet with an uninitialized sequence number when its sequence number was dropped before ([PR #XXXX](https://github.com/versatica/mediasoup/pull/XXXX)).
 
 ### 3.32.2
 

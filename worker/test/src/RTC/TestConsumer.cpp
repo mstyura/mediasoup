@@ -1,11 +1,13 @@
 #include "common.hpp"
 #include "FBS/rtpParameters.h"
+#include "FBS/rtpStream.h"
 #include "FBS/transport.h"
 #include "RTC/Consumer.hpp"
 #include "RTC/RTCP/packet/Packet.hpp"
 #include "RTC/RTP/Packet.hpp"
 #include "RTC/RTP/RtpStream.hpp"
 #include "RTC/RTP/RtpStreamRecv.hpp"
+#include "RTC/RTP/RtpStreamSend.hpp"
 #include "RTC/RtpDictionaries.hpp"
 #include "flatbuffers/buffer.h"
 #include "mocks/include/MockShared.hpp"
@@ -341,6 +343,45 @@ SCENARIO("Consumer with SimpleProducerStreamManager", "[rtp][consumer]")
 		fixture.consumer->SendRtpPacket(packet, sharedPacket);
 
 		fixture.listener->Verify(3);
+
+		delete packet;
+	}
+
+	SECTION("RTP packets with a dropped sequence number are not forwarded")
+	{
+		Fixture fixture;
+
+		// Indicate that the transport is connected in order to activate the consumer.
+		dynamic_cast<RTC::Consumer*>(fixture.consumer.get())->TransportConnected();
+
+		auto* packet = RTC::RTP::Packet::Parse(buffer, originalPacketLength + 64);
+		std::shared_ptr<RTC::RTP::Packet> sharedPacket{ nullptr };
+
+		const auto send = [&packet, &sharedPacket, &fixture](uint16_t seq, uint8_t pt) -> void
+		{
+			packet->SetSequenceNumber(seq);
+			packet->SetPayloadType(pt);
+			sharedPacket.reset();
+
+			fixture.consumer->SendRtpPacket(packet, sharedPacket);
+		};
+
+		send(1, payloadType);
+		// Dropped.
+		send(2, payloadType + 1);
+		send(3, payloadType);
+		// Same sequence number as the dropped one.
+		send(2, payloadType);
+
+		fixture.listener->Verify(2);
+
+		flatbuffers::FlatBufferBuilder builder;
+
+		builder.Finish(fixture.consumer->GetRtpStreams().at(0)->FillBufferStats(builder));
+
+		const auto* stats = flatbuffers::GetRoot<FBS::RtpStream::Stats>(builder.GetBufferPointer());
+
+		REQUIRE(stats->data_as_SendStats()->base()->data_as_BaseStats()->packetsDiscarded() == 0);
 
 		delete packet;
 	}
